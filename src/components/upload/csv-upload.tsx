@@ -101,7 +101,7 @@ export function CsvUpload({ onParsed, disabled }: CsvUploadProps) {
           <input
             ref={fileInputRef}
             type="file"
-            accept=".csv"
+            accept=".csv,text/csv,text/comma-separated-values,application/csv"
             className="hidden"
             onChange={handleFileInput}
           />
