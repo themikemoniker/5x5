@@ -51,7 +51,7 @@ export function CsvUpload({ onParsed, disabled }: CsvUploadProps) {
   const handleFileInput = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
-      if (file && file.name.toLowerCase().endsWith(".csv")) handleFile(file);
+      if (file) handleFile(file);
     },
     [handleFile]
   );
