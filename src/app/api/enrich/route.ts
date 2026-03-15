@@ -21,17 +21,57 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const params = new URLSearchParams({
-    address1: address,
-    address2: "",
-  });
+  // Split address into street (address1) and city/state/zip (address2)
+  let address1 = address;
+  let address2 = "";
 
-  // Try to split address for the API
-  const parts = address.split(",").map((s: string) => s.trim());
-  if (parts.length >= 2) {
-    params.set("address1", parts[0]);
-    params.set("address2", parts.slice(1).join(", "));
+  if (address.includes(",")) {
+    // Comma-separated: "1234 Main St, Indianapolis, IN 46204"
+    const parts = address.split(",").map((s: string) => s.trim());
+    address1 = parts[0];
+    address2 = parts.slice(1).join(", ");
+  } else {
+    // Space-only: "1234 Main St Indianapolis IN 46204"
+    // Match state abbreviation + optional zip to find where city/state starts
+    const stateZipMatch = address.match(
+      /\s([A-Z]{2})\s+(\d{5}(?:-\d{4})?)$/
+    );
+    if (stateZipMatch) {
+      const stateZipStart = stateZipMatch.index!;
+      const state = stateZipMatch[1];
+      const zip = stateZipMatch[2];
+      // Everything before the state+zip is street + city
+      const beforeState = address.slice(0, stateZipStart).trim();
+      // Find the last word before state as the city
+      // Use common Indiana city names or fall back to last word(s)
+      const words = beforeState.split(/\s+/);
+      // Walk backwards to find where the street number/name ends and city begins
+      // Heuristic: city is typically 1-3 words before the state
+      // Try matching known multi-word cities first, then fall back
+      const knownCities = [
+        "South Bend", "Fort Wayne", "Terre Haute", "West Lafayette",
+        "East Chicago", "Michigan City", "New Albany", "Crown Point",
+      ];
+      let city = "";
+      let streetEnd = beforeState.length;
+      for (const kc of knownCities) {
+        if (beforeState.toLowerCase().endsWith(kc.toLowerCase())) {
+          city = kc;
+          streetEnd = beforeState.length - kc.length;
+          break;
+        }
+      }
+      if (!city && words.length >= 2) {
+        // Default: assume last word is the city name
+        city = words[words.length - 1];
+        streetEnd = beforeState.lastIndexOf(city);
+      }
+      address1 = beforeState.slice(0, streetEnd).trim();
+      address2 = `${city}, ${state} ${zip}`;
+    }
   }
+
+  const params = new URLSearchParams({ address1, address2 });
 
   const response = await fetch(
     `${ATTOM_BASE_URL}/propertyapi/v1.0.0/avm/detail?${params.toString()}`,
