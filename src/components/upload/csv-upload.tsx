@@ -1,11 +1,13 @@
 "use client";
 
 import React, { useCallback, useState, useRef } from "react";
-import { Upload, FileText, AlertCircle } from "lucide-react";
+import { Upload, FileText, AlertCircle, Database } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { parseCsv, ParseResult } from "@/services/parser";
 import { RawParcel } from "@/lib/types";
+import { SAMPLE_PARCELS } from "@/lib/seed-data";
 
 // TODO [R2]: Replace CSV upload with automated county website scraping
 
@@ -106,6 +108,22 @@ export function CsvUpload({ onParsed, disabled }: CsvUploadProps) {
             onChange={handleFileInput}
           />
         </div>
+
+        <div className="flex items-center gap-3">
+          <div className="h-px flex-1 bg-border" />
+          <span className="text-xs text-muted-foreground">or</span>
+          <div className="h-px flex-1 bg-border" />
+        </div>
+
+        <Button
+          variant="outline"
+          className="w-full"
+          disabled={disabled}
+          onClick={() => onParsed(SAMPLE_PARCELS)}
+        >
+          <Database className="h-4 w-4 mr-2" />
+          Load Sample Data (20 Indiana parcels)
+        </Button>
 
         {parseResult && (
           <div className="space-y-2">
