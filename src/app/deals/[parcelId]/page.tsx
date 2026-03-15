@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScoreBreakdown } from "@/components/deal-profile/score-breakdown";
 import { PropertyDetails } from "@/components/deal-profile/property-details";
-import { EnrichedParcel } from "@/lib/types";
+import { EnrichedParcel, STATE_LABELS } from "@/lib/types";
 import { getAllDeals } from "@/lib/storage";
 import { isParcelSaved, toggleSavedParcel } from "@/lib/storage";
 import { getScoreBadgeColor } from "@/lib/utils";
@@ -54,8 +54,9 @@ export default function DealProfilePage() {
     );
   }
 
+  const stateName = STATE_LABELS[deal.state] || deal.state;
   const mapsQuery = encodeURIComponent(
-    `${deal.address}, ${deal.county} County, Indiana`
+    `${deal.address}, ${deal.county} County, ${stateName}`
   );
 
   return (
@@ -74,7 +75,7 @@ export default function DealProfilePage() {
           </Button>
           <h1 className="text-2xl font-bold">{deal.address || "No Address"}</h1>
           <p className="text-muted-foreground">
-            {deal.county} County, Indiana — Parcel {deal.parcelId}
+            {deal.county} County, {stateName} — Parcel {deal.parcelId}
           </p>
         </div>
 

@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { EnrichedParcel, RawParcel, FilterState, AuctionGroup, DEFAULT_FILTERS } from "@/lib/types";
 import { scoreParcel } from "@/lib/scoring";
-import { enrichParcelsWithProgress } from "@/services/attom";
+import { enrichParcelsWithProgress, EnrichmentStats } from "@/services/attom";
 import { storeDeals, getAllDeals } from "@/lib/storage";
 
 interface EnrichmentProgress {
@@ -11,6 +11,7 @@ interface EnrichmentProgress {
   total: number;
   currentAddress: string;
   isRunning: boolean;
+  stats: EnrichmentStats;
 }
 
 export function useDeals() {
@@ -21,6 +22,7 @@ export function useDeals() {
     total: 0,
     currentAddress: "",
     isRunning: false,
+    stats: { cached: 0, fetched: 0, failed: 0 },
   });
 
   // Load deals from localStorage on mount
@@ -31,35 +33,20 @@ export function useDeals() {
     }
   }, []);
 
-  const importParcels = useCallback(
-    async (rawParcels: RawParcel[]) => {
-      // Initialize enriched parcels with null enrichment
-      const initial: EnrichedParcel[] = rawParcels.map((p) => ({
-        ...p,
-        enrichment: null,
-        enrichmentError: false,
-        score: null,
-      }));
-
-      setDeals((prev) => [...prev, ...initial]);
-      const startIndex = deals.length;
-
+  const runEnrichment = useCallback(
+    async (parcelsToEnrich: Array<{ address: string; index: number }>, totalForProgress: number) => {
       setEnrichmentProgress({
         completed: 0,
-        total: rawParcels.length,
+        total: totalForProgress,
         currentAddress: "",
         isRunning: true,
+        stats: { cached: 0, fetched: 0, failed: 0 },
       });
-
-      const parcelsToEnrich = rawParcels.map((p, i) => ({
-        address: p.address,
-        index: startIndex + i,
-      }));
 
       await enrichParcelsWithProgress(
         parcelsToEnrich,
-        (completed, total, currentAddress) => {
-          setEnrichmentProgress({ completed, total, currentAddress, isRunning: completed < total });
+        (completed, total, currentAddress, stats) => {
+          setEnrichmentProgress({ completed, total, currentAddress, isRunning: completed < total, stats });
         },
         (index, result, error) => {
           setDeals((prev) => {
@@ -79,17 +66,67 @@ export function useDeals() {
 
       // Store to localStorage after enrichment
       setDeals((prev) => {
-        const auctionId = `${rawParcels[0]?.county}-${rawParcels[0]?.auctionDate}-${Date.now()}`;
-        storeDeals(auctionId, prev);
+        storeDeals(`batch-${Date.now()}`, prev);
         return prev;
       });
     },
-    [deals.length]
+    []
   );
+
+  const importParcels = useCallback(
+    async (rawParcels: RawParcel[]) => {
+      // Initialize enriched parcels with null enrichment
+      const initial: EnrichedParcel[] = rawParcels.map((p) => ({
+        ...p,
+        enrichment: null,
+        enrichmentError: false,
+        score: null,
+      }));
+
+      const startIndex = deals.length;
+      setDeals((prev) => [...prev, ...initial]);
+
+      const parcelsToEnrich = rawParcels.map((p, i) => ({
+        address: p.address,
+        index: startIndex + i,
+      }));
+
+      await runEnrichment(parcelsToEnrich, rawParcels.length);
+    },
+    [deals.length, runEnrichment]
+  );
+
+  const retryFailed = useCallback(async () => {
+    const failedParcels = deals
+      .map((deal, index) => ({ deal, index }))
+      .filter(({ deal }) => deal.enrichmentError);
+
+    if (failedParcels.length === 0) return;
+
+    const parcelsToEnrich = failedParcels.map(({ deal, index }) => ({
+      address: deal.address,
+      index,
+    }));
+
+    // Reset error state for failed parcels
+    setDeals((prev) => {
+      const updated = [...prev];
+      for (const { index } of failedParcels) {
+        if (updated[index]) {
+          updated[index] = { ...updated[index], enrichmentError: false };
+        }
+      }
+      return updated;
+    });
+
+    await runEnrichment(parcelsToEnrich, failedParcels.length);
+  }, [deals, runEnrichment]);
 
   const clearDeals = useCallback(() => {
     setDeals([]);
   }, []);
+
+  const failedCount = deals.filter((d) => d.enrichmentError).length;
 
   return {
     deals,
@@ -98,6 +135,8 @@ export function useDeals() {
     importParcels,
     clearDeals,
     enrichmentProgress,
+    retryFailed,
+    failedCount,
   };
 }
 
@@ -135,10 +174,11 @@ export function groupDealsByAuction(deals: EnrichedParcel[]): AuctionGroup[] {
   const groups = new Map<string, AuctionGroup>();
 
   for (const deal of deals) {
-    const key = `${deal.county}-${deal.auctionDate}`;
+    const key = `${deal.state}-${deal.county}-${deal.auctionDate}`;
     if (!groups.has(key)) {
       groups.set(key, {
         county: deal.county,
+        state: deal.state,
         auctionDate: deal.auctionDate,
         key,
         deals: [],

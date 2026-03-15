@@ -1,11 +1,12 @@
 "use client";
 
 import React, { useMemo } from "react";
-import { Gavel } from "lucide-react";
+import { Gavel, RotateCcw } from "lucide-react";
 import { CsvUpload } from "@/components/upload/csv-upload";
 import { EnrichmentProgress } from "@/components/upload/enrichment-progress";
 import { CatalogView } from "@/components/catalog/catalog-view";
 import { FilterSidebar } from "@/components/filters/filter-sidebar";
+import { Button } from "@/components/ui/button";
 import { useDeals, filterDeals } from "@/hooks/use-deals";
 import { useSavedDeals } from "@/hooks/use-saved-deals";
 
@@ -16,6 +17,8 @@ export default function CatalogPage() {
     setFilters,
     importParcels,
     enrichmentProgress,
+    retryFailed,
+    failedCount,
   } = useDeals();
   const { savedIds, toggleSaved } = useSavedDeals();
 
@@ -35,7 +38,7 @@ export default function CatalogPage() {
       <div>
         <h1 className="text-3xl font-bold flex items-center gap-3">
           <Gavel className="h-8 w-8" />
-          Indiana Tax Lien Catalog
+          Tax Lien Catalog
         </h1>
         <p className="text-muted-foreground mt-1">
           Upload county tax sale lists, enrich with property data, and find the best deals.
@@ -49,7 +52,27 @@ export default function CatalogPage() {
       />
 
       {/* Enrichment Progress */}
-      <EnrichmentProgress {...enrichmentProgress} />
+      <EnrichmentProgress
+        {...enrichmentProgress}
+      />
+
+      {/* Retry Failed */}
+      {failedCount > 0 && !enrichmentProgress.isRunning && (
+        <div className="flex items-center gap-3 p-3 rounded-lg border border-destructive/30 bg-destructive/5">
+          <span className="text-sm text-destructive">
+            {failedCount} parcel{failedCount === 1 ? "" : "s"} failed to enrich.
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={retryFailed}
+            className="text-destructive border-destructive/30 hover:bg-destructive/10"
+          >
+            <RotateCcw className="h-3 w-3 mr-1" />
+            Retry Failed
+          </Button>
+        </div>
+      )}
 
       {/* Main Content */}
       {deals.length > 0 && (

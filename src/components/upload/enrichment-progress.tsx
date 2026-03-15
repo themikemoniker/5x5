@@ -1,15 +1,17 @@
 "use client";
 
 import React from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Zap } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { EnrichmentStats } from "@/services/attom";
 
 interface EnrichmentProgressProps {
   completed: number;
   total: number;
   currentAddress: string;
   isRunning: boolean;
+  stats?: EnrichmentStats;
 }
 
 export function EnrichmentProgress({
@@ -17,10 +19,12 @@ export function EnrichmentProgress({
   total,
   currentAddress,
   isRunning,
+  stats,
 }: EnrichmentProgressProps) {
   if (!isRunning && total === 0) return null;
 
   const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+  const showCacheStats = stats && (stats.cached > 0 || !isRunning);
 
   return (
     <Card>
@@ -40,6 +44,18 @@ export function EnrichmentProgress({
             <p className="text-xs text-muted-foreground truncate">
               Processing: {currentAddress}
             </p>
+          )}
+          {showCacheStats && (
+            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1">
+                <Zap className="h-3 w-3 text-yellow-500" />
+                {stats.cached} cached
+              </span>
+              <span>{stats.fetched} fetched</span>
+              {stats.failed > 0 && (
+                <span className="text-destructive">{stats.failed} failed</span>
+              )}
+            </div>
           )}
         </div>
       </CardContent>

@@ -1,19 +1,39 @@
 import Papa from "papaparse";
-import { RawParcel } from "@/lib/types";
-
-// TODO [R2]: Replace CSV upload with automated county website scraping
-// TODO [R2]: Add Florida county CSV format support
+import { RawParcel, SupportedState } from "@/lib/types";
 
 interface CsvRow {
   [key: string]: string;
 }
 
-const FIELD_MAPPINGS: Record<keyof RawParcel, string[]> = {
-  parcelId: ["parcel id", "parcel_id", "parcelid", "parcel", "pin", "parcel number", "parcel_number"],
-  address: ["address", "situs address", "situs_address", "property address", "property_address", "location"],
-  ownerName: ["owner", "owner name", "owner_name", "taxpayer", "taxpayer name", "name"],
-  lienAmount: ["lien amount", "lien_amount", "amount", "total due", "total_due", "tax due", "amount due", "lien"],
-  auctionDate: ["auction date", "auction_date", "sale date", "sale_date", "date"],
+const FIELD_MAPPINGS: Record<keyof Omit<RawParcel, "state">, string[]> = {
+  parcelId: [
+    "parcel id", "parcel_id", "parcelid", "parcel", "pin", "parcel number", "parcel_number",
+    // Florida-specific
+    "folio", "folio number", "folio_number", "account", "account number", "account_number",
+    "certificate number", "certificate_number", "cert no", "cert_no",
+  ],
+  address: [
+    "address", "situs address", "situs_address", "property address", "property_address", "location",
+    // Florida-specific
+    "situs", "property location", "property_location", "site address", "site_address",
+  ],
+  ownerName: [
+    "owner", "owner name", "owner_name", "taxpayer", "taxpayer name", "name",
+    // Florida-specific
+    "assessed owner", "assessed_owner", "property owner", "property_owner",
+    "owner of record", "owner_of_record",
+  ],
+  lienAmount: [
+    "lien amount", "lien_amount", "amount", "total due", "total_due", "tax due", "amount due", "lien",
+    // Florida-specific
+    "face amount", "face_amount", "opening bid", "opening_bid", "minimum bid", "minimum_bid",
+    "certificate amount", "certificate_amount", "taxes owed", "taxes_owed",
+  ],
+  auctionDate: [
+    "auction date", "auction_date", "sale date", "sale_date", "date",
+    // Florida-specific
+    "tax sale date", "tax_sale_date", "certificate date", "certificate_date",
+  ],
   county: ["county", "county name", "county_name"],
 };
 
@@ -21,11 +41,11 @@ function normalizeHeader(header: string): string {
   return header.toLowerCase().trim().replace(/[^a-z0-9\s_]/g, "");
 }
 
-function findFieldMapping(header: string): keyof RawParcel | null {
+function findFieldMapping(header: string): keyof Omit<RawParcel, "state"> | null {
   const normalized = normalizeHeader(header);
   for (const [field, aliases] of Object.entries(FIELD_MAPPINGS)) {
     if (aliases.includes(normalized)) {
-      return field as keyof RawParcel;
+      return field as keyof Omit<RawParcel, "state">;
     }
   }
   return null;
@@ -59,7 +79,11 @@ export interface ParseResult {
   unmappedHeaders: string[];
 }
 
-export function parseCsv(csvText: string, defaultCounty?: string): ParseResult {
+export function parseCsv(
+  csvText: string,
+  defaultCounty?: string,
+  state: SupportedState = "IN"
+): ParseResult {
   const errors: string[] = [];
   const unmappedHeaders: string[] = [];
 
@@ -79,7 +103,7 @@ export function parseCsv(csvText: string, defaultCounty?: string): ParseResult {
 
   // Build header mapping
   const headers = result.meta.fields || [];
-  const headerMap: Record<string, keyof RawParcel> = {};
+  const headerMap: Record<string, keyof Omit<RawParcel, "state">> = {};
 
   for (const header of headers) {
     const field = findFieldMapping(header);
@@ -94,7 +118,7 @@ export function parseCsv(csvText: string, defaultCounty?: string): ParseResult {
 
   for (let i = 0; i < result.data.length; i++) {
     const row = result.data[i];
-    const parcel: Partial<RawParcel> = {};
+    const parcel: Partial<RawParcel> = { state };
 
     for (const [header, field] of Object.entries(headerMap)) {
       const value = row[header]?.trim() || "";
@@ -130,6 +154,7 @@ export function parseCsv(csvText: string, defaultCounty?: string): ParseResult {
       lienAmount: parcel.lienAmount || 0,
       auctionDate: parcel.auctionDate || "",
       county: parcel.county || "Unknown",
+      state,
     });
   }
 

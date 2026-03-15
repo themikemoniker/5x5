@@ -1,5 +1,12 @@
 export type PropertyType = "SFR" | "Condo" | "Vacant Land" | "Commercial" | "Unknown";
 
+export type SupportedState = "IN" | "FL";
+
+export const STATE_LABELS: Record<SupportedState, string> = {
+  IN: "Indiana",
+  FL: "Florida",
+};
+
 export interface RawParcel {
   parcelId: string;
   address: string;
@@ -7,6 +14,7 @@ export interface RawParcel {
   lienAmount: number;
   auctionDate: string; // ISO date string
   county: string;
+  state: SupportedState;
 }
 
 export interface AttomEnrichment {
@@ -32,6 +40,7 @@ export interface EnrichedParcel extends RawParcel {
 
 export interface AuctionGroup {
   county: string;
+  state: SupportedState;
   auctionDate: string;
   key: string;
   deals: EnrichedParcel[];
@@ -59,5 +68,18 @@ export const DEFAULT_FILTERS: FilterState = {
   savedOnly: false,
 };
 
-// TODO [R2]: Add Florida county type mappings
+// Florida counties with tax lien sales
+export const FLORIDA_COUNTIES = [
+  "Alachua", "Baker", "Bay", "Bradford", "Brevard", "Broward", "Calhoun",
+  "Charlotte", "Citrus", "Clay", "Collier", "Columbia", "DeSoto", "Dixie",
+  "Duval", "Escambia", "Flagler", "Franklin", "Gadsden", "Gilchrist",
+  "Glades", "Gulf", "Hamilton", "Hardee", "Hendry", "Hernando", "Highlands",
+  "Hillsborough", "Holmes", "Indian River", "Jackson", "Jefferson", "Lafayette",
+  "Lake", "Lee", "Leon", "Levy", "Liberty", "Madison", "Manatee", "Marion",
+  "Martin", "Miami-Dade", "Monroe", "Nassau", "Okaloosa", "Okeechobee",
+  "Orange", "Osceola", "Palm Beach", "Pasco", "Pinellas", "Polk", "Putnam",
+  "Santa Rosa", "Sarasota", "Seminole", "St. Johns", "St. Lucie", "Sumter",
+  "Suwannee", "Taylor", "Union", "Volusia", "Wakulla", "Walton", "Washington",
+] as const;
+
 // TODO [R3]: Add portfolio tracking interfaces (ROI, status, notes)

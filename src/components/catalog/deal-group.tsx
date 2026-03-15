@@ -28,7 +28,7 @@ export function DealGroup({ group, savedIds, onToggleSave }: DealGroupProps) {
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1.5 text-sm font-semibold">
               <MapPin className="h-4 w-4 text-primary" />
-              {group.county} County
+              {group.county} County, {group.state}
             </div>
             <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
               <Calendar className="h-4 w-4" />

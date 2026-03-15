@@ -10,6 +10,7 @@ function makeDeal(overrides: Partial<EnrichedParcel> = {}): EnrichedParcel {
     lienAmount: 5000,
     auctionDate: "2025-06-15",
     county: "Marion",
+    state: "IN",
     enrichment: {
       estimatedValue: 100000,
       propertyType: "SFR",

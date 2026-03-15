@@ -6,10 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { parseCsv, ParseResult } from "@/services/parser";
-import { RawParcel } from "@/lib/types";
+import { RawParcel, SupportedState, STATE_LABELS } from "@/lib/types";
 import { SAMPLE_PARCELS } from "@/lib/seed-data";
-
-// TODO [R2]: Replace CSV upload with automated county website scraping
 
 interface CsvUploadProps {
   onParsed: (parcels: RawParcel[]) => void;
@@ -20,6 +18,7 @@ export function CsvUpload({ onParsed, disabled }: CsvUploadProps) {
   const [dragOver, setDragOver] = useState(false);
   const [parseResult, setParseResult] = useState<ParseResult | null>(null);
   const [defaultCounty, setDefaultCounty] = useState("");
+  const [selectedState, setSelectedState] = useState<SupportedState>("IN");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFile = useCallback(
@@ -27,7 +26,7 @@ export function CsvUpload({ onParsed, disabled }: CsvUploadProps) {
       const reader = new FileReader();
       reader.onload = (e) => {
         const text = e.target?.result as string;
-        const result = parseCsv(text, defaultCounty || undefined);
+        const result = parseCsv(text, defaultCounty || undefined, selectedState);
         setParseResult(result);
         if (result.parcels.length > 0) {
           onParsed(result.parcels);
@@ -35,7 +34,7 @@ export function CsvUpload({ onParsed, disabled }: CsvUploadProps) {
       };
       reader.readAsText(file);
     },
-    [defaultCounty, onParsed]
+    [defaultCounty, selectedState, onParsed]
   );
 
   const handleDrop = useCallback(
@@ -67,16 +66,38 @@ export function CsvUpload({ onParsed, disabled }: CsvUploadProps) {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div>
-          <label className="text-sm font-medium text-muted-foreground">
-            Default County (if not in CSV)
-          </label>
-          <Input
-            placeholder="e.g., Marion"
-            value={defaultCounty}
-            onChange={(e) => setDefaultCounty(e.target.value)}
-            className="mt-1"
-          />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="text-sm font-medium text-muted-foreground">
+              State
+            </label>
+            <div className="flex gap-2 mt-1">
+              {(Object.entries(STATE_LABELS) as [SupportedState, string][]).map(
+                ([code, label]) => (
+                  <Button
+                    key={code}
+                    variant={selectedState === code ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setSelectedState(code)}
+                    className="flex-1"
+                  >
+                    {label}
+                  </Button>
+                )
+              )}
+            </div>
+          </div>
+          <div>
+            <label className="text-sm font-medium text-muted-foreground">
+              Default County (if not in CSV)
+            </label>
+            <Input
+              placeholder={selectedState === "IN" ? "e.g., Marion" : "e.g., Miami-Dade"}
+              value={defaultCounty}
+              onChange={(e) => setDefaultCounty(e.target.value)}
+              className="mt-1"
+            />
+          </div>
         </div>
 
         <div
@@ -98,7 +119,7 @@ export function CsvUpload({ onParsed, disabled }: CsvUploadProps) {
             Drop a CSV file here, or click to browse
           </p>
           <p className="text-xs text-muted-foreground mt-1">
-            Indiana county tax sale list (.csv)
+            {STATE_LABELS[selectedState]} county tax sale list (.csv)
           </p>
           <input
             ref={fileInputRef}

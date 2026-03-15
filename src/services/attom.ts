@@ -1,7 +1,5 @@
 import { AttomEnrichment, PropertyType } from "@/lib/types";
-
-// TODO [R2]: Add batch enrichment endpoint for improved throughput
-// TODO [R2]: Add caching layer to avoid re-fetching previously enriched parcels
+import { getCachedEnrichment, setCachedEnrichment } from "@/lib/storage";
 
 const RATE_LIMIT_DELAY = 1500; // ms between calls to avoid ATTOM rate limits
 
@@ -26,6 +24,10 @@ function mapPropertyType(proptype?: string, propsubtype?: string): PropertyType 
 }
 
 export async function enrichParcel(address: string): Promise<AttomEnrichment> {
+  // Check cache first
+  const cached = getCachedEnrichment(address);
+  if (cached) return cached;
+
   const response = await fetch("/api/enrich", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -40,7 +42,7 @@ export async function enrichParcel(address: string): Promise<AttomEnrichment> {
   const data = await response.json();
   const property = data.property?.[0];
 
-  return {
+  const result: AttomEnrichment = {
     estimatedValue: property?.avm?.amount?.value ?? null,
     propertyType: mapPropertyType(
       property?.summary?.proptype,
@@ -49,32 +51,60 @@ export async function enrichParcel(address: string): Promise<AttomEnrichment> {
     lastSalePrice: property?.sale?.amount?.saleamt ?? null,
     lastSaleDate: property?.sale?.saleTransDate ?? null,
   };
+
+  // Store in cache
+  setCachedEnrichment(address, result);
+
+  return result;
+}
+
+export interface EnrichmentStats {
+  cached: number;
+  fetched: number;
+  failed: number;
 }
 
 export async function enrichParcelsWithProgress(
   parcels: Array<{ address: string; index: number }>,
-  onProgress: (completed: number, total: number, currentAddress: string) => void,
+  onProgress: (completed: number, total: number, currentAddress: string, stats: EnrichmentStats) => void,
   onResult: (index: number, result: AttomEnrichment | null, error: boolean) => void
-): Promise<void> {
+): Promise<EnrichmentStats> {
   const total = parcels.length;
+  const stats: EnrichmentStats = { cached: 0, fetched: 0, failed: 0 };
 
   for (let i = 0; i < parcels.length; i++) {
     const { address, index } = parcels[i];
-    onProgress(i, total, address);
+    onProgress(i, total, address, stats);
+
+    // Check if this address is already cached
+    const cached = getCachedEnrichment(address);
+    if (cached) {
+      stats.cached++;
+      onResult(index, cached, false);
+      // No rate limit delay needed for cached results
+      continue;
+    }
 
     try {
       const result = await enrichParcel(address);
+      stats.fetched++;
       onResult(index, result, false);
     } catch (error) {
       console.error(`Failed to enrich ${address}:`, error);
+      stats.failed++;
       onResult(index, null, true);
     }
 
-    // Rate limiting delay between calls
+    // Rate limiting delay only between actual API calls
     if (i < parcels.length - 1) {
-      await new Promise((resolve) => setTimeout(resolve, RATE_LIMIT_DELAY));
+      // Only delay if the next one isn't cached either
+      const nextAddress = parcels[i + 1]?.address;
+      if (nextAddress && !getCachedEnrichment(nextAddress)) {
+        await new Promise((resolve) => setTimeout(resolve, RATE_LIMIT_DELAY));
+      }
     }
   }
 
-  onProgress(total, total, "Complete");
+  onProgress(total, total, "Complete", stats);
+  return stats;
 }

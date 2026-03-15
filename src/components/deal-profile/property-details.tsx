@@ -4,7 +4,7 @@ import React from "react";
 import { ExternalLink, MapPin, User, DollarSign, Home, Calendar } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { EnrichedParcel } from "@/lib/types";
+import { EnrichedParcel, STATE_LABELS } from "@/lib/types";
 import { formatCurrency, buildCountyAssessorUrl } from "@/lib/utils";
 
 // TODO [R3]: Add portfolio tracking fields (purchase price, status, notes)
@@ -35,7 +35,7 @@ export function PropertyDetails({ deal }: PropertyDetailsProps) {
     },
     { icon: Calendar, label: "Last Sale Date", value: deal.enrichment?.lastSaleDate || "N/A" },
     { icon: Calendar, label: "Auction Date", value: deal.auctionDate },
-    { icon: MapPin, label: "County", value: `${deal.county} County, Indiana` },
+    { icon: MapPin, label: "County", value: `${deal.county} County, ${STATE_LABELS[deal.state] || deal.state}` },
     { icon: Home, label: "Parcel ID", value: deal.parcelId },
   ];
 
