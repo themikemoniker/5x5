@@ -3,7 +3,7 @@ import { AttomEnrichment, PropertyType } from "@/lib/types";
 // TODO [R2]: Add batch enrichment endpoint for improved throughput
 // TODO [R2]: Add caching layer to avoid re-fetching previously enriched parcels
 
-const RATE_LIMIT_DELAY = 200; // ms between calls
+const RATE_LIMIT_DELAY = 1500; // ms between calls to avoid ATTOM rate limits
 
 function mapPropertyType(proptype?: string, propsubtype?: string): PropertyType {
   if (!proptype) return "Unknown";

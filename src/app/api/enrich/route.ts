@@ -73,23 +73,36 @@ export async function POST(request: NextRequest) {
 
   const params = new URLSearchParams({ address1, address2 });
 
-  const response = await fetch(
-    `${ATTOM_BASE_URL}/propertyapi/v1.0.0/avm/detail?${params.toString()}`,
-    {
-      headers: {
-        Accept: "application/json",
-        apikey: apiKey,
-      },
-    }
-  );
+  const url = `${ATTOM_BASE_URL}/propertyapi/v1.0.0/avm/detail?${params.toString()}`;
+  const headers = { Accept: "application/json", apikey: apiKey };
 
-  if (!response.ok) {
-    return NextResponse.json(
-      { error: `ATTOM API error: ${response.status}` },
-      { status: response.status }
-    );
+  const MAX_RETRIES = 3;
+  let lastResponse: Response | null = null;
+
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    lastResponse = await fetch(url, { headers });
+
+    if (lastResponse.ok) {
+      const data = await lastResponse.json();
+      return NextResponse.json(data);
+    }
+
+    // Retry on rate limit (429) or server errors (5xx)
+    if (
+      (lastResponse.status === 429 || lastResponse.status >= 500) &&
+      attempt < MAX_RETRIES
+    ) {
+      const delay = 2000 * Math.pow(2, attempt); // 2s, 4s, 8s
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      continue;
+    }
+
+    break;
   }
 
-  const data = await response.json();
-  return NextResponse.json(data);
+  const errorBody = await lastResponse!.text().catch(() => "");
+  return NextResponse.json(
+    { error: `ATTOM API error: ${lastResponse!.status}`, detail: errorBody },
+    { status: lastResponse!.status }
+  );
 }
