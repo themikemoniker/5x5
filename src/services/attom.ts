@@ -3,28 +3,7 @@ import { AttomEnrichment, PropertyType } from "@/lib/types";
 // TODO [R2]: Add batch enrichment endpoint for improved throughput
 // TODO [R2]: Add caching layer to avoid re-fetching previously enriched parcels
 
-const ATTOM_BASE_URL = "https://api.gateway.attomdata.com";
 const RATE_LIMIT_DELAY = 200; // ms between calls
-
-interface AttomAvmResponse {
-  property?: Array<{
-    avm?: {
-      amount?: {
-        value?: number;
-      };
-    };
-    summary?: {
-      proptype?: string;
-      propsubtype?: string;
-    };
-    sale?: {
-      amount?: {
-        saleamt?: number;
-      };
-      saleTransDate?: string;
-    };
-  }>;
-}
 
 function mapPropertyType(proptype?: string, propsubtype?: string): PropertyType {
   if (!proptype) return "Unknown";
@@ -47,39 +26,18 @@ function mapPropertyType(proptype?: string, propsubtype?: string): PropertyType 
 }
 
 export async function enrichParcel(address: string): Promise<AttomEnrichment> {
-  const apiKey = process.env.NEXT_PUBLIC_ATTOM_API_KEY;
-
-  if (!apiKey) {
-    throw new Error("ATTOM API key not configured. Set NEXT_PUBLIC_ATTOM_API_KEY in .env");
-  }
-
-  const params = new URLSearchParams({
-    address1: address,
-    address2: "", // city/state parsed from full address
+  const response = await fetch("/api/enrich", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ address }),
   });
 
-  // Try to split address for the API
-  const parts = address.split(",").map((s) => s.trim());
-  if (parts.length >= 2) {
-    params.set("address1", parts[0]);
-    params.set("address2", parts.slice(1).join(", "));
-  }
-
-  const response = await fetch(
-    `${ATTOM_BASE_URL}/propertyapi/v1.0.0/avm/detail?${params.toString()}`,
-    {
-      headers: {
-        Accept: "application/json",
-        apikey: apiKey,
-      },
-    }
-  );
-
   if (!response.ok) {
-    throw new Error(`ATTOM API error: ${response.status} ${response.statusText}`);
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Enrichment failed: ${response.status}`);
   }
 
-  const data: AttomAvmResponse = await response.json();
+  const data = await response.json();
   const property = data.property?.[0];
 
   return {
