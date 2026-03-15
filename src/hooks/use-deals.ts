@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { EnrichedParcel, RawParcel, FilterState, AuctionGroup, DEFAULT_FILTERS } from "@/lib/types";
-import { scoreParcel } from "@/lib/scoring";
+import { scoreParcel, buildPortfolioContext, scoreParcelWithPortfolio, PortfolioContext } from "@/lib/scoring";
 import { enrichParcelsWithProgress, EnrichmentStats } from "@/services/attom";
-import { storeDeals, getAllDeals } from "@/lib/storage";
+import { storeDeals, getAllDeals, getAllPortfolioEntries } from "@/lib/storage";
 
 interface EnrichmentProgress {
   completed: number;
@@ -17,6 +17,7 @@ interface EnrichmentProgress {
 export function useDeals() {
   const [deals, setDeals] = useState<EnrichedParcel[]>([]);
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
+  const [portfolioAdjusted, setPortfolioAdjusted] = useState(false);
   const [enrichmentProgress, setEnrichmentProgress] = useState<EnrichmentProgress>({
     completed: 0,
     total: 0,
@@ -32,6 +33,20 @@ export function useDeals() {
       setDeals(stored);
     }
   }, []);
+
+  // Build portfolio context for adjusted scoring
+  const portfolioContext: PortfolioContext | null = useMemo(() => {
+    if (!portfolioAdjusted) return null;
+    const entries = getAllPortfolioEntries();
+    if (entries.length === 0) return null;
+    return buildPortfolioContext(entries, deals);
+  }, [portfolioAdjusted, deals]);
+
+  // Apply portfolio-adjusted scores when toggle is on
+  const adjustedDeals = useMemo(() => {
+    if (!portfolioContext) return deals;
+    return deals.map((d) => scoreParcelWithPortfolio(d, portfolioContext));
+  }, [deals, portfolioContext]);
 
   const runEnrichment = useCallback(
     async (parcelsToEnrich: Array<{ address: string; index: number }>, totalForProgress: number) => {
@@ -129,7 +144,7 @@ export function useDeals() {
   const failedCount = deals.filter((d) => d.enrichmentError).length;
 
   return {
-    deals,
+    deals: adjustedDeals,
     filters,
     setFilters,
     importParcels,
@@ -137,6 +152,8 @@ export function useDeals() {
     enrichmentProgress,
     retryFailed,
     failedCount,
+    portfolioAdjusted,
+    setPortfolioAdjusted,
   };
 }
 

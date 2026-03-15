@@ -7,8 +7,6 @@ import { Button } from "@/components/ui/button";
 import { EnrichedParcel, STATE_LABELS } from "@/lib/types";
 import { formatCurrency, buildCountyAssessorUrl } from "@/lib/utils";
 
-// TODO [R3]: Add portfolio tracking fields (purchase price, status, notes)
-
 interface PropertyDetailsProps {
   deal: EnrichedParcel;
 }

@@ -82,4 +82,46 @@ export const FLORIDA_COUNTIES = [
   "Suwannee", "Taylor", "Union", "Volusia", "Wakulla", "Walton", "Washington",
 ] as const;
 
-// TODO [R3]: Add portfolio tracking interfaces (ROI, status, notes)
+// --- Portfolio tracking ---
+
+export type LienStatus = "watching" | "purchased" | "redeemed" | "foreclosed" | "written_off";
+
+export const LIEN_STATUS_LABELS: Record<LienStatus, string> = {
+  watching: "Watching",
+  purchased: "Purchased",
+  redeemed: "Redeemed",
+  foreclosed: "Foreclosed",
+  written_off: "Written Off",
+};
+
+export const LIEN_STATUS_COLORS: Record<LienStatus, string> = {
+  watching: "bg-blue-100 text-blue-800",
+  purchased: "bg-yellow-100 text-yellow-800",
+  redeemed: "bg-green-100 text-green-800",
+  foreclosed: "bg-purple-100 text-purple-800",
+  written_off: "bg-red-100 text-red-800",
+};
+
+export interface PortfolioEntry {
+  parcelId: string;
+  status: LienStatus;
+  purchasePrice: number | null;
+  purchaseDate: string | null;
+  redemptionDate: string | null;
+  redemptionAmount: number | null;
+  interestRate: number | null; // annual percentage, e.g. 10 for 10%
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PortfolioSummary {
+  totalInvested: number;
+  totalReturned: number;
+  totalROI: number;
+  activeLiens: number;
+  redeemedLiens: number;
+  foreclosedLiens: number;
+  writtenOffLiens: number;
+  avgHoldDays: number;
+}

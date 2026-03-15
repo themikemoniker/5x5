@@ -1,4 +1,4 @@
-import { PropertyType, DealScore, EnrichedParcel } from "./types";
+import { PropertyType, DealScore, EnrichedParcel, PortfolioEntry } from "./types";
 
 const WEIGHTS = {
   ltv: 0.5,
@@ -87,4 +87,75 @@ export function scoreParcel(parcel: EnrichedParcel): EnrichedParcel {
   return { ...parcel, score };
 }
 
-// TODO [R3]: Add portfolio-adjusted scoring that factors in existing holdings
+// --- Portfolio-adjusted scoring ---
+
+export interface PortfolioContext {
+  countyExposure: Map<string, number>; // county -> total invested $
+  totalInvested: number;
+}
+
+export function buildPortfolioContext(
+  entries: PortfolioEntry[],
+  deals: EnrichedParcel[]
+): PortfolioContext {
+  const dealsMap = new Map<string, EnrichedParcel>();
+  for (const d of deals) {
+    dealsMap.set(d.parcelId, d);
+  }
+
+  const countyExposure = new Map<string, number>();
+  let totalInvested = 0;
+
+  for (const entry of entries) {
+    if (entry.status === "written_off" || !entry.purchasePrice) continue;
+    const deal = dealsMap.get(entry.parcelId);
+    if (!deal) continue;
+
+    const key = `${deal.state}-${deal.county}`;
+    countyExposure.set(key, (countyExposure.get(key) || 0) + entry.purchasePrice);
+    totalInvested += entry.purchasePrice;
+  }
+
+  return { countyExposure, totalInvested };
+}
+
+export function calculateConcentrationPenalty(
+  county: string,
+  state: string,
+  context: PortfolioContext
+): number {
+  if (context.totalInvested === 0) return 0;
+
+  const key = `${state}-${county}`;
+  const exposure = context.countyExposure.get(key) || 0;
+  const concentrationRatio = exposure / context.totalInvested;
+
+  // No penalty below 30% concentration in one county
+  // Linear penalty from 0 to 15 points for 30-100% concentration
+  if (concentrationRatio <= 0.3) return 0;
+  return Math.round(((concentrationRatio - 0.3) / 0.7) * 15);
+}
+
+export function scoreParcelWithPortfolio(
+  parcel: EnrichedParcel,
+  context: PortfolioContext
+): EnrichedParcel {
+  // First compute base score
+  const scored = scoreParcel(parcel);
+  if (!scored.score) return scored;
+
+  const penalty = calculateConcentrationPenalty(parcel.county, parcel.state, context);
+  if (penalty === 0) return scored;
+
+  const adjusted = Math.max(0, scored.score.overall - penalty);
+  const isTopDeal = adjusted >= 75 && scored.score.ltvRatio <= 0.25;
+
+  return {
+    ...scored,
+    score: {
+      ...scored.score,
+      overall: adjusted,
+      isTopDeal,
+    },
+  };
+}

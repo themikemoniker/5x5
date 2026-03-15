@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo } from "react";
-import { Gavel, RotateCcw } from "lucide-react";
+import { RotateCcw } from "lucide-react";
 import { CsvUpload } from "@/components/upload/csv-upload";
 import { EnrichmentProgress } from "@/components/upload/enrichment-progress";
 import { CatalogView } from "@/components/catalog/catalog-view";
@@ -19,6 +19,8 @@ export default function CatalogPage() {
     enrichmentProgress,
     retryFailed,
     failedCount,
+    portfolioAdjusted,
+    setPortfolioAdjusted,
   } = useDeals();
   const { savedIds, toggleSaved } = useSavedDeals();
 
@@ -34,17 +36,6 @@ export default function CatalogPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold flex items-center gap-3">
-          <Gavel className="h-8 w-8" />
-          Tax Lien Catalog
-        </h1>
-        <p className="text-muted-foreground mt-1">
-          Upload county tax sale lists, enrich with property data, and find the best deals.
-        </p>
-      </div>
-
       {/* Upload Section */}
       <CsvUpload
         onParsed={importParcels}
@@ -83,6 +74,8 @@ export default function CatalogPage() {
               filters={filters}
               onFiltersChange={setFilters}
               availableCounties={availableCounties}
+              portfolioAdjusted={portfolioAdjusted}
+              onPortfolioAdjustedChange={setPortfolioAdjusted}
             />
           </div>
 

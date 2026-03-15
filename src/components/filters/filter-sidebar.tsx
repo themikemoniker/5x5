@@ -15,12 +15,16 @@ interface FilterSidebarProps {
   filters: FilterState;
   onFiltersChange: (filters: FilterState) => void;
   availableCounties: string[];
+  portfolioAdjusted?: boolean;
+  onPortfolioAdjustedChange?: (value: boolean) => void;
 }
 
 export function FilterSidebar({
   filters,
   onFiltersChange,
   availableCounties,
+  portfolioAdjusted,
+  onPortfolioAdjustedChange,
 }: FilterSidebarProps) {
   const updateFilter = <K extends keyof FilterState>(
     key: K,
@@ -85,6 +89,19 @@ export function FilterSidebar({
             onCheckedChange={(checked) => updateFilter("savedOnly", checked)}
           />
         </div>
+
+        {/* Portfolio-Adjusted Scoring */}
+        {onPortfolioAdjustedChange && (
+          <div className="flex items-center justify-between">
+            <label className="text-sm font-medium" title="Penalizes deals in counties where you already hold liens">
+              Portfolio Adjusted
+            </label>
+            <Switch
+              checked={portfolioAdjusted ?? false}
+              onCheckedChange={onPortfolioAdjustedChange}
+            />
+          </div>
+        )}
 
         {/* County Multi-Select */}
         {availableCounties.length > 0 && (

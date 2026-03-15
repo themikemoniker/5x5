@@ -1,8 +1,9 @@
-import { AttomEnrichment, EnrichedParcel } from "./types";
+import { AttomEnrichment, EnrichedParcel, PortfolioEntry, LienStatus } from "./types";
 
 const DEALS_KEY = "indiana-tax-lien-deals";
 const SAVED_KEY = "indiana-tax-lien-saved";
 const ENRICHMENT_CACHE_KEY = "indiana-tax-lien-enrichment-cache";
+const PORTFOLIO_KEY = "indiana-tax-lien-portfolio";
 
 export function storeDeals(auctionId: string, deals: EnrichedParcel[]): void {
   if (typeof window === "undefined") return;
@@ -116,4 +117,63 @@ export function getEnrichmentCacheStats(): { count: number } {
   return { count: Object.keys(cache).length };
 }
 
-// TODO [R3]: Replace localStorage with database persistence for portfolio tracking
+// --- Portfolio tracking ---
+
+function getPortfolioMap(): Record<string, PortfolioEntry> {
+  if (typeof window === "undefined") return {};
+  const raw = localStorage.getItem(PORTFOLIO_KEY);
+  if (!raw) return {};
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return {};
+  }
+}
+
+function savePortfolioMap(map: Record<string, PortfolioEntry>): void {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(PORTFOLIO_KEY, JSON.stringify(map));
+}
+
+export function getPortfolioEntry(parcelId: string): PortfolioEntry | null {
+  const map = getPortfolioMap();
+  return map[parcelId] || null;
+}
+
+export function getAllPortfolioEntries(): PortfolioEntry[] {
+  return Object.values(getPortfolioMap());
+}
+
+export function getPortfolioParcelIds(): Set<string> {
+  return new Set(Object.keys(getPortfolioMap()));
+}
+
+export function upsertPortfolioEntry(entry: PortfolioEntry): void {
+  const map = getPortfolioMap();
+  map[entry.parcelId] = { ...entry, updatedAt: new Date().toISOString() };
+  savePortfolioMap(map);
+}
+
+export function createPortfolioEntry(parcelId: string, status: LienStatus = "watching"): PortfolioEntry {
+  const now = new Date().toISOString();
+  const entry: PortfolioEntry = {
+    parcelId,
+    status,
+    purchasePrice: null,
+    purchaseDate: null,
+    redemptionDate: null,
+    redemptionAmount: null,
+    interestRate: null,
+    notes: "",
+    createdAt: now,
+    updatedAt: now,
+  };
+  upsertPortfolioEntry(entry);
+  return entry;
+}
+
+export function removePortfolioEntry(parcelId: string): void {
+  const map = getPortfolioMap();
+  delete map[parcelId];
+  savePortfolioMap(map);
+}

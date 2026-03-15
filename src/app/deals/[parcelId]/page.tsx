@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScoreBreakdown } from "@/components/deal-profile/score-breakdown";
 import { PropertyDetails } from "@/components/deal-profile/property-details";
+import { PortfolioTracker } from "@/components/deal-profile/portfolio-tracker";
 import { EnrichedParcel, STATE_LABELS } from "@/lib/types";
 import { getAllDeals } from "@/lib/storage";
 import { isParcelSaved, toggleSavedParcel } from "@/lib/storage";
@@ -104,7 +105,10 @@ export default function DealProfilePage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <PropertyDetails deal={deal} />
-        {deal.score && <ScoreBreakdown score={deal.score} />}
+        <div className="space-y-6">
+          {deal.score && <ScoreBreakdown score={deal.score} />}
+          <PortfolioTracker parcelId={parcelId} />
+        </div>
       </div>
 
       {/* Google Maps Embed */}
