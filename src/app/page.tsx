@@ -3,6 +3,7 @@
 import React, { useMemo } from "react";
 import { RotateCcw } from "lucide-react";
 import { CsvUpload } from "@/components/upload/csv-upload";
+import { LiveFetch } from "@/components/upload/live-fetch";
 import { EnrichmentProgress } from "@/components/upload/enrichment-progress";
 import { CatalogView } from "@/components/catalog/catalog-view";
 import { FilterSidebar } from "@/components/filters/filter-sidebar";
@@ -36,11 +37,17 @@ export default function CatalogPage() {
 
   return (
     <div className="space-y-6">
-      {/* Upload Section */}
-      <CsvUpload
-        onParsed={importParcels}
-        disabled={enrichmentProgress.isRunning}
-      />
+      {/* Data Import */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <CsvUpload
+          onParsed={importParcels}
+          disabled={enrichmentProgress.isRunning}
+        />
+        <LiveFetch
+          onFetched={importParcels}
+          disabled={enrichmentProgress.isRunning}
+        />
+      </div>
 
       {/* Enrichment Progress */}
       <EnrichmentProgress

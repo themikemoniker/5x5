@@ -143,7 +143,7 @@ export function CsvUpload({ onParsed, disabled }: CsvUploadProps) {
           onClick={() => onParsed(SAMPLE_PARCELS)}
         >
           <Database className="h-4 w-4 mr-2" />
-          Load Sample Data (20 Indiana parcels)
+          Load Sample Data (35 parcels across 10 IN counties)
         </Button>
 
         {parseResult && (
