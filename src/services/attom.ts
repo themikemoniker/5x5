@@ -1,7 +1,8 @@
 import { AttomEnrichment, PropertyType } from "@/lib/types";
 import { getCachedEnrichment, setCachedEnrichment } from "@/lib/storage";
 
-const RATE_LIMIT_DELAY = 1500; // ms between calls to avoid ATTOM rate limits
+const BASE_RATE_LIMIT_DELAY = 2500; // ms between calls to avoid ATTOM rate limits
+const RATE_LIMITED_DELAY = 10000; // ms to wait after hitting a rate limit
 
 function mapPropertyType(proptype?: string, propsubtype?: string): PropertyType {
   if (!proptype) return "Unknown";
@@ -36,7 +37,10 @@ export async function enrichParcel(address: string): Promise<AttomEnrichment> {
 
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || `Enrichment failed: ${response.status}`);
+    const error = new Error(err.error || `Enrichment failed: ${response.status}`);
+    (error as Error & { retryable?: boolean; status?: number }).retryable = err.retryable ?? false;
+    (error as Error & { retryable?: boolean; status?: number }).status = response.status;
+    throw error;
   }
 
   const data = await response.json();
@@ -71,6 +75,7 @@ export async function enrichParcelsWithProgress(
 ): Promise<EnrichmentStats> {
   const total = parcels.length;
   const stats: EnrichmentStats = { cached: 0, fetched: 0, failed: 0 };
+  let currentDelay = BASE_RATE_LIMIT_DELAY;
 
   for (let i = 0; i < parcels.length; i++) {
     const { address, index } = parcels[i];
@@ -89,10 +94,20 @@ export async function enrichParcelsWithProgress(
       const result = await enrichParcel(address);
       stats.fetched++;
       onResult(index, result, false);
+      // Successful call — gradually reduce delay back to baseline
+      currentDelay = Math.max(BASE_RATE_LIMIT_DELAY, currentDelay * 0.8);
     } catch (error) {
       console.error(`Failed to enrich ${address}:`, error);
       stats.failed++;
       onResult(index, null, true);
+
+      // If rate limited, back off significantly before continuing
+      const isRateLimited = (error as Error & { retryable?: boolean; status?: number }).status === 429;
+      if (isRateLimited) {
+        currentDelay = RATE_LIMITED_DELAY;
+        await new Promise((resolve) => setTimeout(resolve, RATE_LIMITED_DELAY));
+        continue;
+      }
     }
 
     // Rate limiting delay only between actual API calls
@@ -100,7 +115,7 @@ export async function enrichParcelsWithProgress(
       // Only delay if the next one isn't cached either
       const nextAddress = parcels[i + 1]?.address;
       if (nextAddress && !getCachedEnrichment(nextAddress)) {
-        await new Promise((resolve) => setTimeout(resolve, RATE_LIMIT_DELAY));
+        await new Promise((resolve) => setTimeout(resolve, currentDelay));
       }
     }
   }

@@ -51,6 +51,8 @@ export async function POST(request: NextRequest) {
       const knownCities = [
         "South Bend", "Fort Wayne", "Terre Haute", "West Lafayette",
         "East Chicago", "Michigan City", "New Albany", "Crown Point",
+        "New Haven", "Benton Harbor", "Battle Creek", "Bowling Green",
+        "Olive Hill", "Cedar Lake", "Dyer Town", "La Porte",
       ];
       let city = "";
       let streetEnd = beforeState.length;
@@ -76,7 +78,7 @@ export async function POST(request: NextRequest) {
   const url = `${ATTOM_BASE_URL}/propertyapi/v1.0.0/avm/detail?${params.toString()}`;
   const headers = { Accept: "application/json", apikey: apiKey };
 
-  const MAX_RETRIES = 3;
+  const MAX_RETRIES = 4;
   let lastResponse: Response | null = null;
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
@@ -92,7 +94,7 @@ export async function POST(request: NextRequest) {
       (lastResponse.status === 429 || lastResponse.status >= 500) &&
       attempt < MAX_RETRIES
     ) {
-      const delay = 2000 * Math.pow(2, attempt); // 2s, 4s, 8s
+      const delay = 3000 * Math.pow(2, attempt); // 3s, 6s, 12s, 24s
       await new Promise((resolve) => setTimeout(resolve, delay));
       continue;
     }
@@ -101,8 +103,17 @@ export async function POST(request: NextRequest) {
   }
 
   const errorBody = await lastResponse!.text().catch(() => "");
+
+  // Return structured error with retryable flag so client can adapt
+  const isRateLimited = lastResponse!.status === 429;
   return NextResponse.json(
-    { error: `ATTOM API error: ${lastResponse!.status}`, detail: errorBody },
+    {
+      error: isRateLimited
+        ? "Rate limited by ATTOM API"
+        : `ATTOM API error: ${lastResponse!.status}`,
+      detail: errorBody,
+      retryable: isRateLimited || lastResponse!.status >= 500,
+    },
     { status: lastResponse!.status }
   );
 }

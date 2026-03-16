@@ -32,5 +32,5 @@ export function getScoreBadgeColor(score: number): string {
 }
 
 export function buildCountyAssessorUrl(_county: string): string {
-  return `https://www.in.gov/dlgf/county-assessor-contact-information/`;
+  return `https://www.in.gov/dlgf/local-officials/assessors/`;
 }
