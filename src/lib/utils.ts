@@ -31,6 +31,8 @@ export function getScoreBadgeColor(score: number): string {
   return "bg-red-500 text-white";
 }
 
-export function buildCountyAssessorUrl(_county: string): string {
-  return `https://www.in.gov/dlgf/local-officials/assessors/`;
+export function buildCountyAssessorUrl(county: string): string {
+  // DLGF has per-county pages with assessor info, tax rates, etc.
+  const slug = county.toLowerCase().replace(/\s+/g, "-");
+  return `https://www.in.gov/dlgf/county-specific-information/${slug}/`;
 }
